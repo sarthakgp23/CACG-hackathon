@@ -1,0 +1,82 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.multioutput import MultiOutputClassifier
+from sklearn.ensemble import RandomForestClassifier
+
+# Load the data
+training_set_features = pd.read_csv('D:\\sarthak\\ML\\cacg\\training_set_features.csv')
+training_set_labels = pd.read_csv('D:\\sarthak\\ML\\cacg\\training_set_labels.csv')
+
+
+# Separate features and targets
+X = training_set_features.drop(columns=['respondent_id'])
+y = training_set_labels[['xyz_vaccine', 'seasonal_vaccine']]
+# Identify categorical and numerical columns
+categorical_cols = X.select_dtypes(include=['object', 'category']).columns
+numerical_cols = X.select_dtypes(include=['int64', 'float64']).columns
+# Preprocessing for numerical data: inpute missing values
+numerical_transformer = SimpleImputer(strategy='median')
+# Preprocessing for categorical data: inpute missing values and one-hot encode
+categorical_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='most_frequent')),
+    ('onehot', OneHotEncoder(handle_unknown='ignore'))
+])
+# Bundle preprocessing for numerical and categorical data
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numerical_transformer, numerical_cols),
+        ('cat', categorical_transformer, categorical_cols)
+    ])
+
+
+
+#loading test set
+test_set_features = pd.read_csv('D:\\sarthak\\ML\\cacg\\test_set_features.csv')
+submission_format = pd.read_csv('D:\\sarthak\\ML\\cacg\\submission_format.csv')
+
+
+
+# Separate features and targets
+V = test_set_features.drop(columns=['respondent_id'])
+B = submission_format[['h1n1_vaccine', 'seasonal_vaccine']]
+# Identify categorical and numerical columns
+categorical_cols_test = V.select_dtypes(include=['object', 'category']).columns
+numerical_cols_test = B.select_dtypes(include=['int64', 'float64']).columns
+# Preprocessing for numerical data: inpute missing values
+numerical_transformer = SimpleImputer(strategy='median')
+# Preprocessing for categorical data: inpute missing values and one-hot encode
+categorical_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='most_frequent')),
+    ('onehot', OneHotEncoder(handle_unknown='ignore'))
+])
+# Bundle preprocessing for numerical and categorical data
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numerical_transformer, numerical_cols),
+        ('cat', categorical_transformer, categorical_cols)
+    ])
+
+# Define the model
+model = MultiOutputClassifier(RandomForestClassifier(random_state=42))
+# Create and evaluate the pipeline
+clf = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('classifier', model)
+])
+
+# Train the model
+clf.fit(X,y)
+
+# Predict probabilities
+y_pred_proba = clf.predict_proba(V)
+
+# Convert the list of tuples to a DataFrame
+y_pred_proba_df = pd.DataFrame({
+    'xyz_vaccine': y_pred_proba[0][:, 1], 
+    'seasonal_vaccine': y_pred_proba[1][:, 1]
+})
+print(y_pred_proba_df)
